@@ -7,10 +7,12 @@ import re
 import uuid
 import hashlib
 import base64
+import en_core_web_sm
 load_dotenv()
 
 # Load spaCy model for natural language processing
-nlp = spacy.load("en_core_web_sm")
+nlp = en_core_web_sm.load()
+
 
 
 def clean_text(text: str):

@@ -24,6 +24,7 @@ streamlit
 groq
 sounddevice
 soundfile
+spacy
 pytesseract
 bs4
 markdown
@@ -35,5 +36,4 @@ cohere
 llama-index-node-parser-topic
 langgraph
 langsmith
-spacy==3.0.0
-en-core-web-sm==2.3.0
+en-core-web-sm
