@@ -73,49 +73,58 @@ def llm_processing_Jamie(query: str, context_text: str):
     ]
     return llm_processing(messages, "gpt-4o-mini", 0.7, 0.9, 700)
 
+import matplotlib.pyplot as plt
+import base64
+from io import BytesIO
+
 # Function to generate and return a graph as a Base64-encoded string
 def graph_vis(user_query, user_context, user_response):
     try:
         # Request GPT to generate Python code for a graph
         response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages = [
-            {
-                "role": "system",
-                "content": (
-                    "I am providing you with the context related to the query, answer to the query and the query itself. \n" 
-                    f"Query : {user_query} , Context : {user_context}, Response:{user_response} \n"
-                    "If the query requires any graph or chart for a better understanding or presentation of answer, \n" 
-                    "please provide only the corresponding matplotlib Python code to generate the graph or chart. \n" 
-                    "Give proper label for X and Y axis and any legends if needed\n"
-                    "Respond with just the code, and nothing else. \n" 
-                )
-            },
-            {
-                "role": "user",
-                "content": (
-                    f"Provide only the python code to support the answer with a graph or chart. \n"
-                )
-            }
-        ]
-    )
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "I am providing you with the context related to the query, answer to the query and the query itself. \n" 
+                        f"Query : {user_query} , Context : {user_context}, Response:{user_response} \n"
+                        "If the query requires any graph or chart for a better understanding or presentation of answer, \n" 
+                        "please provide only the corresponding matplotlib Python code to generate the graph or chart. \n" 
+                        "Give proper label for X and Y axis and any legends if needed\n"
+                        "Respond with just the code, and nothing else. \n" 
+                    )
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"Provide only the python code to support the answer with a graph or chart. \n"
+                    )
+                }
+            ]
+        )
+        
+        # Extract the Python code for the plot from the response
         input_plot = response.choices[0].message.content.replace("```python", "").replace("plt.show()", "").replace("```", "")
         
-        # Create the graph
+        # Create the graph in memory (without saving to disk)
         fig, ax = plt.subplots()
         exec(input_plot, {"plt": plt, "ax": ax})
         
-        # Convert figure to Base64
+        # Convert the figure to a Base64-encoded PNG image
         buffer = BytesIO()
         plt.savefig(buffer, format="png")
         buffer.seek(0)
         base64_image = base64.b64encode(buffer.getvalue()).decode("utf-8")
         buffer.close()
         plt.close(fig)
+        
+        # Return the Base64 image string
         return base64_image
     except Exception as e:
         print(f"Error in graph_vis: {e}")
         return None
+
 
 # Main chatbot function to process user input and generate responses
 async def CHAT_WITH_JAMIE(user_input: str, use_web: bool = False, use_graph: bool = False, uploaded_file=None, raw_Conversation=[]):
