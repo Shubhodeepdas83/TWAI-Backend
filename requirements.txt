@@ -36,3 +36,4 @@ cohere
 llama-index-node-parser-topic
 langgraph
 langsmith
+en-core-web-sm==3.0.0
