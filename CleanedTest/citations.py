@@ -7,11 +7,44 @@ import re
 import uuid
 import hashlib
 import base64
+import tempfile
+import requests
 load_dotenv()
 
 # Load spaCy model for natural language processing
 nlp = spacy.load("en_core_web_sm")
 
+
+def download_from_url(url):
+    """
+    Download a file from a public URL to a temporary local file.
+    
+    Args:
+        url: Public URL of the PDF file
+        
+    Returns:
+        Path to the local temporary file or None if download fails
+    """
+    try:
+        # Create a temporary file
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
+        temp_path = temp_file.name
+        temp_file.close()
+        
+        # Download the file
+        response = requests.get(url, stream=True)
+        response.raise_for_status()  # Raise an exception for HTTP errors
+        
+        with open(temp_path, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
+                
+        return temp_path
+    except Exception as e:
+        print(f"Error downloading from URL: {e}")
+        if 'temp_path' in locals() and os.path.exists(temp_path):
+            os.unlink(temp_path)  # Remove the temporary file
+        return None
 
 
 def clean_text(text: str):
@@ -32,15 +65,24 @@ def extract_page_image_with_highlight(pdf_path: str, page_number: int, highlight
     Highlight specific text on a PDF page and save it as an image.
     
     Args:
-        pdf_path: Path to the PDF file
+        pdf_path: Path to the PDF file (local path or URL)
         page_number: Zero-based page number to process
         highlight_text: Text to highlight on the page
         
     Returns:
         Path to the saved image file or None if an error occurs
     """
+    local_pdf_path = pdf_path
+    is_url = pdf_path.startswith(('http://', 'https://'))
+    
     try:
-        doc = fitz.open(pdf_path)
+        # If it's a URL, download the file first
+        if is_url:
+            local_pdf_path = download_from_url(pdf_path)
+            if not local_pdf_path:
+                return None
+        
+        doc = fitz.open(local_pdf_path)
         page = doc[page_number]
         bbox_list = []
 
@@ -58,12 +100,20 @@ def extract_page_image_with_highlight(pdf_path: str, page_number: int, highlight
             page.add_highlight_annot((first_rect[0], first_rect[1], last_rect[2], last_rect[3]))
 
         # Save the page as an image with 3x resolution
-        img_path = f"highlighted_page_{page_number + 1}.png"
+        img_path = tempfile.NamedTemporaryFile(delete=False, suffix='.png').name
         page.get_pixmap(matrix=fitz.Matrix(3, 3)).save(img_path)
         doc.close()
+        
+        # Clean up the temporary PDF if it was downloaded from a URL
+        if is_url and os.path.exists(local_pdf_path):
+            os.unlink(local_pdf_path)
+            
         return img_path
     except Exception as e:
         print(f"Error highlighting PDF: {e}")
+        # Clean up the temporary PDF if it was downloaded from a URL
+        if is_url and local_pdf_path and os.path.exists(local_pdf_path):
+            os.unlink(local_pdf_path)
         return None
 
 
@@ -72,16 +122,39 @@ def extract_page_image(pdf_path: str, page_number: int):
     Extract a PDF page as an image without highlights.
     
     Args:
-        pdf_path: Path to the PDF file
+        pdf_path: Path to the PDF file (local path or URL)
         page_number: Zero-based page number to extract
         
     Returns:
         Path to the saved image file
     """
-    page = fitz.open(pdf_path).load_page(page_number)
-    img_path = "temp_page.png"
-    page.get_pixmap().save(img_path)
-    return img_path
+    local_pdf_path = pdf_path
+    is_url = pdf_path.startswith(('http://', 'https://'))
+    
+    try:
+        # If it's a URL, download the file first
+        if is_url:
+            local_pdf_path = download_from_url(pdf_path)
+            if not local_pdf_path:
+                return None
+        
+        doc = fitz.open(local_pdf_path)
+        page = doc.load_page(page_number)
+        img_path = tempfile.NamedTemporaryFile(delete=False, suffix='.png').name
+        page.get_pixmap().save(img_path)
+        doc.close()
+        
+        # Clean up the temporary PDF if it was downloaded from a URL
+        if is_url and os.path.exists(local_pdf_path):
+            os.unlink(local_pdf_path)
+            
+        return img_path
+    except Exception as e:
+        print(f"Error extracting page image: {e}")
+        # Clean up the temporary PDF if it was downloaded from a URL
+        if is_url and local_pdf_path and os.path.exists(local_pdf_path):
+            os.unlink(local_pdf_path)
+        return None
 
 
 def generate_unique_filename(pdf_path, page_number):
@@ -95,6 +168,15 @@ def generate_unique_filename(pdf_path, page_number):
     Returns:
         A unique filename string
     """
+    # Extract just the UUID part from S3 URLs if possible
+    if pdf_path.startswith('http'):
+        try:
+            filename = pdf_path.split('/')[-1]
+            if '-' in filename and '.pdf' in filename.lower():
+                pdf_path = filename  # Use just the filename for hashing
+        except:
+            pass  # If extraction fails, use the full path
+            
     pdf_hash = hashlib.md5(pdf_path.encode()).hexdigest()[:8]  # Short hash of PDF path
     unique_id = uuid.uuid4().hex[:8]  # Random unique identifier
     return f"img_{pdf_hash}_{page_number}_{unique_id}.png"
@@ -110,7 +192,7 @@ def encode_image_to_base64(image_path):
     Returns:
         Base64 encoded string or None if the file doesn't exist
     """
-    if not os.path.exists(image_path):
+    if not image_path or not os.path.exists(image_path):
         return None
 
     with open(image_path, "rb") as image_file:
@@ -153,13 +235,25 @@ def extract_used_citations(response, citation_map, all_retrieved_documents):
             for doc in all_retrieved_documents:
                 pdf_path = doc.get("PDF Path")
                 page_number = doc.get("Page Number")
-                page_id = (pdf_path, page_number)
                 
-                # Skip if PDF path is missing or page already processed
-                if not pdf_path or page_id in processed_pages:
+                # Skip if PDF path is missing
+                if not pdf_path:
+                    continue
+                    
+                # Create a unique ID for this page
+                page_id = (pdf_path, page_number)
+                if page_id in processed_pages:
                     continue
                 
-                if pdf_path in source_desc:  # Match PDF path to source description
+                # For S3 URLs, extract the filename/UUID part for matching
+                pdf_identifier = pdf_path
+                if pdf_path.startswith('http'):
+                    pdf_identifier = pdf_path.split('/')[-1]  # Get the UUID.pdf part
+                
+                # Check if the PDF path or its identifier is in the source description
+                if (pdf_path in source_desc or 
+                    pdf_identifier in source_desc):
+                    
                     processed_pages.add(page_id)
                     text_chunk = doc.get("Text Chunk")
                     

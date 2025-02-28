@@ -5,6 +5,8 @@ from CleanedTest.summary_maker import SUMMARY_WITH_AI
 from typing import Optional
 from fastapi import FastAPI, Form, UploadFile, File, HTTPException
 from CleanedTest.talk_to_jamie import CHAT_WITH_JAMIE
+from CleanedTest.upload_pdf import ADD_EMBEDDINGS_FROM_S3
+from CleanedTest.delete_embeddings import DELETE_EMBEDDINGS
 import json
 
 # Initialize FastAPI app
@@ -73,5 +75,27 @@ async def chat_with_jamie(
             raw_Conversation=conversation
         )
         return response
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"An error occurred: {str(e)}")
+
+class AddEmbeddings(BaseModel):
+    s3_url: str
+
+@app.post("/add_embeddings")
+async def add_embeddings(request: AddEmbeddings):
+    try:
+        return ADD_EMBEDDINGS_FROM_S3(request.s3_url)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"An error occurred: {str(e)}")
+    
+
+
+class DeleteEmbeddings(BaseModel):
+    pdf_url: str
+
+@app.post("/delete_embeddings")
+async def delete_embeddings(request: DeleteEmbeddings):
+    try:
+        return DELETE_EMBEDDINGS(request.pdf_url)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"An error occurred: {str(e)}")

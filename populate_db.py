@@ -11,7 +11,6 @@ from langchain.vectorstores.chroma import Chroma
 load_dotenv()
 
 # Constants
-SCHROMA_PATH = os.getenv("SCHROMA_PATH")
 RCHROMA_PATH = os.getenv("RCHROMA_PATH")
 DATA_PATH = os.getenv("DATA_PATH")
 
@@ -107,12 +106,6 @@ def populate_database():
     try:
         print("📄 Loading documents from the data folder...")
         documents = load_documents()
-
-        print("📄 Semantic Splitting documents into chunks...")
-        chunksS = split_documentsS(documents)
-        print("📂 Adding chunks to the Chroma database (Semantic)...")
-        add_to_chroma(chunksS, SCHROMA_PATH)
-
         print("📄 Recursive Splitting documents into chunks...")
         chunksR = split_documentsR(documents)
         print("📂 Adding chunks to the Chroma database (Recursive)...")
