@@ -105,44 +105,40 @@ def extract_relevant_conversation(raw_Conversation):
         # Return empty list if conversion fails
         return []
 
-
-def query_ragR(query_text: str, chunk_size: int,namespace:str):
+def query_ragR(query_text: str, chunk_size: int, namespace: str):
     """
     Wrapper function to query the R chroma database.
-    
+
     Args:
         query_text (str): The query to search for
         chunk_size (int): Number of chunks to retrieve
-        
+        namespace (str): The namespace for ChromaDB retrieval
+
     Returns:
         list: Retrieved documents with metadata
     """
     try:
-            
         index = pc.Index(name=INDEX_NAME)
-        
-
 
         embeddings = OpenAIEmbeddings()
         query_embedding = embeddings.embed_documents([query_text])[0]
-    
+
         results = index.query(vector=query_embedding, top_k=chunk_size, include_metadata=True, namespace=namespace)
 
-
-        
         return [
             {
-                "PDF Path": match.metadata.get("source", "Unknown"),
-                "Page Number": match.metadata.get("page", "Unknown"),
-                "Text Chunk": match.metadata.get("text", "Unknown"),
-                "Relevance Score": match.score
+                "page_content": match.metadata.get("text", "Unknown"),  # Ensure this key exists
+                "metadata": {
+                    "PDF Path": match.metadata.get("source", "Unknown"),
+                    "Page Number": match.metadata.get("page", "Unknown"),
+                    "Relevance Score": match.score
+                }
             }
             for match in results.matches
         ]
     except Exception as e:
         print(f"Error querying RAG: {e}")
         return []
-
 
 # def query_rag(persist_path: str, query_text: str, chunk_size: int):
 #     """
