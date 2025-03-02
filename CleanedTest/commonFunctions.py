@@ -192,8 +192,7 @@ def useWeb(query: str):
     
     # Extract and format organic search results
     web_data = [
-        {"PDF Path": item["link"], "Text Chunk": item["snippet"]}
-        for item in results.get("organic", [])
+        {"page_content": item["snippet"],"metadata": {"PDF Path": item["link"]}}for item in results.get("organic", [])
     ]
     return web_data
 
