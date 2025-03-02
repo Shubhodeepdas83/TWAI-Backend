@@ -127,7 +127,7 @@ def query_ragR(query_text: str, chunk_size: int, namespace: str):
 
         retrieved_documents = []
         for match in results.matches:
-            page_content = match.metadata.get("text", "").strip()  # Ensure page_content is never None
+            page_content = match.metadata.get("text", "").strip()
 
             if not page_content:  # Skip empty documents
                 continue
@@ -140,6 +140,7 @@ def query_ragR(query_text: str, chunk_size: int, namespace: str):
                     "Relevance Score": match.score
                 }
             })
+
 
         return retrieved_documents
     except Exception as e:
@@ -213,9 +214,12 @@ def citation_context_text(all_retrieved_documents):
 
     # Process each document and add to context with citation markers
     for doc in all_retrieved_documents:
-        source_name = doc.get('PDF Path', 'Unknown Source')
-        page_info = f", Page {doc.get('Page Number', 'Unknown')}" if "Page Number" in doc else ""
-        doc_text = doc.get("Text Chunk", "")
+        
+        # Correct metadata extraction
+        metadata = doc.get("metadata", {})
+        source_name = metadata.get("PDF Path", "Unknown Source")
+        page_info = f", Page {metadata.get('Page Number', 'Unknown')}" if "Page Number" in metadata else ""
+        doc_text = doc.get("page_content", "")
 
         # Create source description and add to context
         source_description = f"{source_name}{page_info}"
@@ -226,7 +230,6 @@ def citation_context_text(all_retrieved_documents):
         citation_count += 1
         
     return context_text, citation_map
-
 
 def llm_processing(
     query_context: str, model: str, temp: float, top_p: float, token_limit: int

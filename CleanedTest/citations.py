@@ -216,17 +216,25 @@ def extract_used_citations(response, citation_map, all_retrieved_documents):
     Returns:
         Dictionary of used citations with their descriptions and image data
     """
-    # Extract all citation numbers from the response text
+    print("\n\n\n\n\nExtracting citation numbers from response...")
     used_citation_numbers = set(map(int, re.findall(r"\[(?:[^\]]*?(\d+)[^\]]*?)\]", response)))
+    print("Extracted citation numbers:", used_citation_numbers)
     
     used_citations = {}
     processed_pages = set()  # Track already processed PDF pages
 
     for num in sorted(used_citation_numbers):
+        print(f"Processing citation number: {num}")
+        
         if num not in citation_map:
+            print(f"Citation number {num} not found in citation_map, skipping...")
             continue
-            
+        
         source_desc = citation_map[num]
+        print(f"Source description: {source_desc}")
+
+
+        
         
         # Handle PDF citations
         if ".pdf" in source_desc.lower():
@@ -234,16 +242,20 @@ def extract_used_citations(response, citation_map, all_retrieved_documents):
             pdf_found = False
             
             for doc in all_retrieved_documents:
-                pdf_path = doc.get("PDF Path")
-                page_number = int(doc.get("Page Number"))
+                metadata = doc.get("metadata", {})
+                pdf_path = metadata.get("PDF Path", "Unknown Source")
+                page_number = int(metadata.get('Page Number', 'Unknown'))
                 
-                # Skip if PDF path is missing
+                print(f"Checking document: PDF Path = {pdf_path}, Page Number = {page_number}")
+                
                 if not pdf_path:
+                    print("Skipping document as PDF Path is missing.")
                     continue
                     
                 # Create a unique ID for this page
                 page_id = (pdf_path, page_number)
                 if page_id in processed_pages:
+                    print(f"Page {page_number} of {pdf_path} already processed, skipping...")
                     continue
                 
                 # For S3 URLs, extract the filename/UUID part for matching
@@ -252,37 +264,39 @@ def extract_used_citations(response, citation_map, all_retrieved_documents):
                     pdf_identifier = pdf_path.split('/')[-1]  # Get the UUID.pdf part
                 
                 # Check if the PDF path or its identifier is in the source description
-                if (pdf_path in source_desc or 
-                    pdf_identifier in source_desc):
+                if pdf_path in source_desc or pdf_identifier in source_desc:
+                    print(f"Matching PDF found for citation {num}.")
                     
                     processed_pages.add(page_id)
-                    text_chunk = doc.get("Text Chunk")
+                    text_chunk = doc.get("page_content", "")
                     
                     # Try to extract image with highlighted text
-                    if text_chunk:
+                    if text_chunk!="":
+                        print("Extracting highlighted image...")
                         img_path = extract_page_image_with_highlight(pdf_path, page_number, text_chunk)
                         if img_path:
+                            print(f"Image extracted successfully: {img_path}")
                             base64_image = encode_image_to_base64(img_path)
                             used_citations[num] = {
-                                "description": f"{source_desc}",
+                                "description": source_desc,
                                 "isimg": True,
                                 "image_data": base64_image
                             }
                         else:
-                            # Fallback to non-highlighted image if highlighting fails
+                            print("Highlight extraction failed, extracting plain image...")
                             img_path = extract_page_image(pdf_path, page_number)
                             base64_image = encode_image_to_base64(img_path)
                             used_citations[num] = {
-                                "description": f"{source_desc}",
+                                "description": source_desc,
                                 "isimg": True,
                                 "image_data": base64_image
                             }
                     else:
-                        # Extract page without highlights if no text chunk is available
+                        print("No text chunk found, extracting plain image...")
                         img_path = extract_page_image(pdf_path, page_number)
                         base64_image = encode_image_to_base64(img_path)
                         used_citations[num] = {
-                            "description": f"{source_desc}",
+                            "description": source_desc,
                             "isimg": True,
                             "image_data": base64_image
                         }
@@ -290,8 +304,8 @@ def extract_used_citations(response, citation_map, all_retrieved_documents):
                     pdf_found = True
                     break
             
-            # Fallback if no matching document is found
             if not pdf_found:
+                print(f"No matching document found for citation {num}, adding fallback entry.")
                 used_citations[num] = {
                     "description": source_desc,
                     "isimg": False,
@@ -300,10 +314,12 @@ def extract_used_citations(response, citation_map, all_retrieved_documents):
                 
         # Handle non-PDF citations (URLs/other sources)
         else:
+            print(f"Citation {num} is not a PDF, storing as text-only reference.")
             used_citations[num] = {
                 "description": source_desc,
                 "isimg": False,
                 "image_data": None
             }
-
+    
+    print("Final extracted citations:", used_citations)
     return used_citations

@@ -93,7 +93,7 @@ def llm_processing_query(context_text, query, custom_instructions, temperature, 
     return llm_processing(messages, "gpt-4o-mini", temperature, top_p, token_limit)
 
 
-def process_ai_help(instruction, temperature, top_p, token_limit, raw_conversation, use_web,namespace):
+def process_ai_help(instruction, temperature, top_p, token_limit, raw_conversation, use_web, namespace):
     """
     Handles AI assistance request, including optional web search.
     
@@ -104,41 +104,49 @@ def process_ai_help(instruction, temperature, top_p, token_limit, raw_conversati
         token_limit (int): Maximum token limit
         raw_conversation (list): Conversation history
         use_web (bool): Whether to include web search results
-        
+        namespace (str): Namespace for RAG retrieval
+    
     Returns:
         dict: Response containing query, result, and used citations
     """
     # Generate query from conversation
     query = handle_help_from_ai(instruction, temperature, top_p, token_limit, raw_conversation)
+    print(f"Generated Query: {query}")
     
     if not query:
         return {"error": "No query generated"}
     
     # Retrieve documents based on query
     chunk_limit = get_model_parameters()["chunk_limit"]
-
-    query_results = query_ragR(query, chunk_limit,namespace)
-
+    print(f"Chunk Limit: {chunk_limit}")
+    
+    query_results = query_ragR(query, chunk_limit, namespace)
+    print(f"Query Results: {query_results}")
     
     # Include web search results if enabled
     all_retrieved_documents = query_results
     if use_web:
         web_results = useWeb(query)
+        print(f"Web Results: {web_results}")
         all_retrieved_documents += web_results  
-
+    
     # Initialize default values
     context_text, citation_map, result = "", {}, "No result found."
     used_citations = {}
-
+    
     if all_retrieved_documents:
         # Generate context text and citation mapping
         context_text, citation_map = citation_context_text(all_retrieved_documents)
-
-
+        print(f"Context Text: {context_text}")
+        print(f"Citation Map: {citation_map}")
+        
         if context_text:
             # Process query with context
             result = llm_processing_query(context_text, query, instruction, temperature, top_p, token_limit)
+            print(f"LLM Processing Result: {result}")
+            
             used_citations = extract_used_citations(result, citation_map, all_retrieved_documents)
+            print(f"Used Citations: {used_citations}")
         else:
             return {"error": "No context found from the retrieved documents"}
     
