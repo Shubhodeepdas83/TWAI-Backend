@@ -15,8 +15,6 @@ from .commonFunctions import (
 # Load environment variables
 load_dotenv()
 
-# Constants
-RCHROMA_PATH = os.getenv("RCHROMA_PATH")
 
 # Initialize OpenAI client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -102,7 +100,7 @@ def llm_processing_FindAnswer(Cust_instr, temp, top_p, token_limit, raw_Conversa
         return None
 
 
-def process_fact_checking(instruction, temp, top_p, token_limit, raw_Conversation, use_web):
+def process_fact_checking(instruction, temp, top_p, token_limit, raw_Conversation, use_web,namespace):
     """
     Handles the fact-checking workflow, including optional web search.
     
@@ -128,7 +126,7 @@ def process_fact_checking(instruction, temp, top_p, token_limit, raw_Conversatio
     
     # Step 2: Retrieve documents based on the query
     chunk_limit = get_model_parameters()["chunk_limit"]
-    query_results = query_ragR(query, chunk_limit)
+    query_results = query_ragR(query, chunk_limit, namespace)
     
     # Step 3: Include web search results if enabled
     all_retrieved_documents = query_results
@@ -170,7 +168,7 @@ def process_fact_checking(instruction, temp, top_p, token_limit, raw_Conversatio
     return response
 
 
-def FACT_CHECKING_HELP(raw_Conversation, use_web):
+def FACT_CHECKING_HELP(raw_Conversation, use_web,userId):
     """
     Main function to process fact checking with appropriate parameters.
     
@@ -192,7 +190,8 @@ def FACT_CHECKING_HELP(raw_Conversation, use_web):
         model_params["top_p"],
         model_params["token_limit"],
         raw_Conversation,
-        use_web
+        use_web,
+        namespace=userId
     )
 
     return response

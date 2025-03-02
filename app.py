@@ -16,6 +16,7 @@ app = FastAPI()
 class AIHelpRequest(BaseModel):
     raw_conversation: list
     use_web: bool
+    userId : str
 
 # Pydantic model for AI Summary request data
 class AISummaryRequest(BaseModel):
@@ -25,16 +26,18 @@ class AISummaryRequest(BaseModel):
 async def process_ai_help_endpoint(request: AIHelpRequest):
     """Handles the AI help processing via POST API."""
     try:
-        return HELP_WITH_AI(request.raw_conversation, request.use_web)
+        return HELP_WITH_AI(request.raw_conversation, request.use_web,request.userId)
     except Exception as e:
+        print(e)
         raise HTTPException(status_code=400, detail=f"An error occurred: {str(e)}")
 
 @app.post("/process-ai-factcheck")
 async def process_ai_factcheck_endpoint(request: AIHelpRequest):
     """Handles the AI fact-checking processing via POST API."""
     try:
-        return FACT_CHECKING_HELP(request.raw_conversation, request.use_web)
+        return FACT_CHECKING_HELP(request.raw_conversation, request.use_web,request.userId)
     except Exception as e:
+        print(e)
         raise HTTPException(status_code=400, detail=f"An error occurred: {str(e)}")
 
 @app.post("/process-ai-summary")
@@ -43,6 +46,7 @@ async def process_ai_summary_endpoint(request: AISummaryRequest):
     try:
         return SUMMARY_WITH_AI(request.raw_conversation)
     except Exception as e:
+        print(e)
         raise HTTPException(status_code=400, detail=f"An error occurred: {str(e)}")
 
 # Define request structure for chat endpoint
@@ -59,7 +63,8 @@ async def chat_with_jamie(
     use_web: Optional[bool] = Form(...),  
     use_graph: Optional[bool] = Form(...),  
     uploaded_file: Optional[UploadFile] = File(None),  
-    raw_Conversation: Optional[str] = Form('')  
+    raw_Conversation: Optional[str] = Form(''),
+    userId : str = Form(...)  
 ):
     """Handles chat processing with Jamie via POST API."""
     try:
@@ -72,30 +77,36 @@ async def chat_with_jamie(
             use_web=use_web,
             use_graph=use_graph,
             uploaded_file=uploaded_file,
-            raw_Conversation=conversation
+            raw_Conversation=conversation,
+            userId=userId
         )
         return response
     except Exception as e:
+        print(e)
         raise HTTPException(status_code=400, detail=f"An error occurred: {str(e)}")
 
 class AddEmbeddings(BaseModel):
     s3_url: str
+    userId:str
 
 @app.post("/add_embeddings")
 async def add_embeddings(request: AddEmbeddings):
     try:
-        return ADD_EMBEDDINGS_FROM_S3(request.s3_url)
+        return ADD_EMBEDDINGS_FROM_S3(request.s3_url,request.userId)
     except Exception as e:
+        print(e)
         raise HTTPException(status_code=400, detail=f"An error occurred: {str(e)}")
     
 
 
 class DeleteEmbeddings(BaseModel):
     pdf_url: str
+    userId:str
 
 @app.post("/delete_embeddings")
 async def delete_embeddings(request: DeleteEmbeddings):
     try:
-        return DELETE_EMBEDDINGS(request.pdf_url)
+        return DELETE_EMBEDDINGS(request.pdf_url,request.userId)
     except Exception as e:
+        print(e)
         raise HTTPException(status_code=400, detail=f"An error occurred: {str(e)}")

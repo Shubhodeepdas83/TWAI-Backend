@@ -5,7 +5,6 @@ from .commonFunctions import extract_relevant_conversation
 
 # Load environment variables
 load_dotenv()
-RCHROMA_PATH = os.getenv("RCHROMA_PATH")
 
 # Initialize OpenAI client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))

@@ -1,27 +1,40 @@
-from langchain_openai import OpenAIEmbeddings
-from langchain.vectorstores.chroma import Chroma
 from dotenv import load_dotenv
 import os
+from pinecone.grpc import PineconeGRPC
+load_dotenv()
+
+HOST = os.getenv("PINECONE_HOST")
+INDEX_NAME = os.getenv("PINECONE_INDEX_NAME")
+pc = PineconeGRPC(api_key=os.getenv("PINECONE_API_KEY"))
 
 
 def load_env_variables():
     load_dotenv()
     return {
-        "RCHROMA_PATH": os.getenv("RCHROMA_PATH"),
         "DATA_PATH": os.getenv("DATA_PATH"),
     }
 
 
 
+    
 
 
-def DELETE_EMBEDDINGS(pdf_url):
-    env_vars = load_env_variables()
+def DELETE_EMBEDDINGS(pdf_url,userId):
+    index = pc.Index(name=INDEX_NAME)
+    
+    try:
 
-    db = Chroma(persist_directory= env_vars['RCHROMA_PATH'], embedding_function=OpenAIEmbeddings())
+        vector_ids=[]
+        for id in index.list(prefix=pdf_url,namespace=userId):
+            vector_ids.extend(id)
+        if vector_ids!=[]: 
+            index.delete(ids=vector_ids, namespace=userId)
+            print(f"✅ Deleted vectors with source '{pdf_url}' from namespace: {userId}")
+        else:
+            print(f"❌ No vectors found with source '{pdf_url}' to delete.")
+    
+    except Exception as e:
+        print(f"❌ Error while listing or deleting vectors: {e}")
 
-    db.delete(where={"source": pdf_url})
-
-    db.persist()
 
     return {"response": True}

@@ -6,7 +6,7 @@ from openai import OpenAI
 from dotenv import load_dotenv
 from CleanedTest.citations import extract_used_citations
 from CleanedTest.commonFunctions import (
-    citation_context_text, extract_relevant_conversation, llm_processing, query_ragR, useWeb
+    citation_context_text, extract_relevant_conversation, llm_processing, query_ragR, useWeb,get_model_parameters
 )
 
 # Load environment variables
@@ -127,7 +127,7 @@ def graph_vis(user_query, user_context, user_response):
 
 
 # Main chatbot function to process user input and generate responses
-async def CHAT_WITH_JAMIE(user_input: str, use_web: bool = False, use_graph: bool = False, uploaded_file=None, raw_Conversation=[]):
+async def CHAT_WITH_JAMIE(userId,user_input: str, use_web: bool = False, use_graph: bool = False, uploaded_file=None, raw_Conversation=[]):
     if not user_input:
         return {"query": "Talk to Jamie", "result": "Could not process - No user input provided"}
     
@@ -144,7 +144,7 @@ async def CHAT_WITH_JAMIE(user_input: str, use_web: bool = False, use_graph: boo
             return {"query": "Talk to Jamie", "result": "Could not process - No query generated"}
         
         # Retrieve relevant documents using RAG
-        retrieved_docs = query_ragR(query, 3)
+        retrieved_docs = query_ragR(query, get_model_parameters()["chunk_limit"],namespace=userId)
         if use_web:
             retrieved_docs.extend(useWeb(query))
         

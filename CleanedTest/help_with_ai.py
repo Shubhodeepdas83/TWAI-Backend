@@ -14,7 +14,6 @@ from .commonFunctions import (
 
 # Load environment variables
 load_dotenv()
-RCHROMA_PATH = os.getenv("RCHROMA_PATH")
 
 # Initialize OpenAI client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -94,7 +93,7 @@ def llm_processing_query(context_text, query, custom_instructions, temperature, 
     return llm_processing(messages, "gpt-4o-mini", temperature, top_p, token_limit)
 
 
-def process_ai_help(instruction, temperature, top_p, token_limit, raw_conversation, use_web):
+def process_ai_help(instruction, temperature, top_p, token_limit, raw_conversation, use_web,namespace):
     """
     Handles AI assistance request, including optional web search.
     
@@ -117,7 +116,9 @@ def process_ai_help(instruction, temperature, top_p, token_limit, raw_conversati
     
     # Retrieve documents based on query
     chunk_limit = get_model_parameters()["chunk_limit"]
-    query_results = query_ragR(query, chunk_limit)
+
+    query_results = query_ragR(query, chunk_limit,namespace)
+
     
     # Include web search results if enabled
     all_retrieved_documents = query_results
@@ -132,6 +133,7 @@ def process_ai_help(instruction, temperature, top_p, token_limit, raw_conversati
     if all_retrieved_documents:
         # Generate context text and citation mapping
         context_text, citation_map = citation_context_text(all_retrieved_documents)
+
 
         if context_text:
             # Process query with context
@@ -148,7 +150,7 @@ def process_ai_help(instruction, temperature, top_p, token_limit, raw_conversati
     }
 
 
-def HELP_WITH_AI(raw_conversation, use_web):
+def HELP_WITH_AI(raw_conversation, use_web,userId):
     """
     Main function to provide AI assistance with optional web search.
     
@@ -170,7 +172,8 @@ def HELP_WITH_AI(raw_conversation, use_web):
         model_params["top_p"],
         model_params["token_limit"],
         raw_conversation,
-        use_web
+        use_web,
+        namespace=userId
     )
 
     return response

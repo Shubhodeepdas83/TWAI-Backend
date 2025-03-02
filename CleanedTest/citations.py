@@ -83,6 +83,7 @@ def extract_page_image_with_highlight(pdf_path: str, page_number: int, highlight
                 return None
         
         doc = fitz.open(local_pdf_path)
+        print(page_number)
         page = doc[page_number]
         bbox_list = []
 
@@ -234,7 +235,7 @@ def extract_used_citations(response, citation_map, all_retrieved_documents):
             
             for doc in all_retrieved_documents:
                 pdf_path = doc.get("PDF Path")
-                page_number = doc.get("Page Number")
+                page_number = int(doc.get("Page Number"))
                 
                 # Skip if PDF path is missing
                 if not pdf_path:

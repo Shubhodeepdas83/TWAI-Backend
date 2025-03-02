@@ -4,12 +4,19 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_community.utilities import GoogleSerperAPIWrapper
 from openai import OpenAI
 from dotenv import load_dotenv
+from pinecone.grpc import PineconeGRPC
+
 
 # Load environment variables
 load_dotenv()
+INDEX_NAME = os.getenv("PINECONE_INDEX_NAME")
+pc = PineconeGRPC(api_key=os.getenv("PINECONE_API_KEY"))
 
-# Constants
-RCHROMA_PATH = os.getenv("RCHROMA_PATH")
+api_key = os.getenv("OPENAI_API_KEY")
+if not api_key:
+    raise ValueError("OPENAI_API_KEY is not set. Please check your .env file.")
+os.environ['OPENAI_API_KEY'] = api_key
+
 
 # Initialize OpenAI client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -99,7 +106,7 @@ def extract_relevant_conversation(raw_Conversation):
         return []
 
 
-def query_ragR(query_text: str, chunk_size: int):
+def query_ragR(query_text: str, chunk_size: int,namespace:str):
     """
     Wrapper function to query the R chroma database.
     
@@ -110,37 +117,61 @@ def query_ragR(query_text: str, chunk_size: int):
     Returns:
         list: Retrieved documents with metadata
     """
-    return query_rag(RCHROMA_PATH, query_text, chunk_size)
-
-
-def query_rag(persist_path: str, query_text: str, chunk_size: int):
-    """
-    Generic function to query RAG with Chroma.
-    
-    Args:
-        persist_path (str): Path to the persisted Chroma database
-        query_text (str): The query to search for
-        chunk_size (int): Number of chunks to retrieve
+    try:
+            
+        index = pc.Index(name=INDEX_NAME)
         
-    Returns:
-        list: Retrieved documents with metadata and relevance scores
-    """
-    # Initialize Chroma vector database with OpenAI embeddings
-    db = Chroma(persist_directory=persist_path, embedding_function=OpenAIEmbeddings())
+
+
+        embeddings = OpenAIEmbeddings()
+        query_embedding = embeddings.embed_documents([query_text])[0]
     
-    # Perform similarity search with relevance scores
-    results = db.similarity_search_with_relevance_scores(query_text, k=chunk_size)
+        results = index.query(vector=query_embedding, top_k=chunk_size, include_metadata=True, namespace=namespace)
+
+
+        
+        return [
+            {
+                "PDF Path": match.metadata.get("source", "Unknown"),
+                "Page Number": match.metadata.get("page", "Unknown"),
+                "Text Chunk": match.metadata.get("text", "Unknown"),
+                "Relevance Score": match.score
+            }
+            for match in results.matches
+        ]
+    except Exception as e:
+        print(f"Error querying RAG: {e}")
+        return []
+
+
+# def query_rag(persist_path: str, query_text: str, chunk_size: int):
+#     """
+#     Generic function to query RAG with Chroma.
     
-    # Format the results with metadata
-    return [
-        {
-            "PDF Path": doc.metadata.get("source", "Unknown"),
-            "Page Number": doc.metadata.get("page", "Unknown"),
-            "Text Chunk": doc.page_content,
-            "Relevance Score": score
-        }
-        for doc, score in results
-    ]
+#     Args:
+#         persist_path (str): Path to the persisted Chroma database
+#         query_text (str): The query to search for
+#         chunk_size (int): Number of chunks to retrieve
+        
+#     Returns:
+#         list: Retrieved documents with metadata and relevance scores
+#     """
+#     # Initialize Chroma vector database with OpenAI embeddings
+#     db = Chroma(persist_directory=persist_path, embedding_function=OpenAIEmbeddings())
+    
+#     # Perform similarity search with relevance scores
+#     results = db.similarity_search_with_relevance_scores(query_text, k=chunk_size)
+    
+#     # Format the results with metadata
+#     return [
+#         {
+#             "PDF Path": doc.metadata.get("source", "Unknown"),
+#             "Page Number": doc.metadata.get("page", "Unknown"),
+#             "Text Chunk": doc.metadata.get("text","Unknown"),
+#             "Relevance Score": score
+#         }
+#         for doc, score in results
+#     ]
 
 
 def useWeb(query: str):
