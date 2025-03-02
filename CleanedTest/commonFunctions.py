@@ -125,17 +125,23 @@ def query_ragR(query_text: str, chunk_size: int, namespace: str):
 
         results = index.query(vector=query_embedding, top_k=chunk_size, include_metadata=True, namespace=namespace)
 
-        return [
-            {
-                "page_content": match.metadata.get("text", "Unknown"),  # Ensure this key exists
+        retrieved_documents = []
+        for match in results.matches:
+            page_content = match.metadata.get("text", "").strip()  # Ensure page_content is never None
+
+            if not page_content:  # Skip empty documents
+                continue
+
+            retrieved_documents.append({
+                "page_content": page_content,
                 "metadata": {
                     "PDF Path": match.metadata.get("source", "Unknown"),
                     "Page Number": match.metadata.get("page", "Unknown"),
                     "Relevance Score": match.score
                 }
-            }
-            for match in results.matches
-        ]
+            })
+
+        return retrieved_documents
     except Exception as e:
         print(f"Error querying RAG: {e}")
         return []
