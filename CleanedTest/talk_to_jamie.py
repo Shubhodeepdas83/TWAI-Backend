@@ -68,7 +68,7 @@ def llm_processing_query_Jamie(query, raw_Conversation):
 # Function to process user queries and generate structured responses
 def llm_processing_Jamie(query: str, context_text: str):
     messages = [
-        {"role": "system", "content": "Provide concise, structured responses with bullet points and citations."},
+        {"role": "system", "content": "Provide concise, structured responses with bullet points and citations.Cite the source number at the end of each sentence or phrase that comes from that source using square brackets like [Number]. If the information comes from multiple sources, cite all relevant source numbers. If the answer is not found in the sources, say 'i am sorry, but I cannot answer this question based on the provided information.'"},
         {"role": "user", "content": f"Sources:\n{context_text}\n\nQuestion: {query}\nAnswer:"}
     ]
     return llm_processing(messages, "gpt-4o-mini", 0.7, 0.9, 700)
@@ -152,6 +152,8 @@ async def CHAT_WITH_JAMIE(userId,user_input: str, use_web: bool = False, use_gra
         context_text, citation_map = citation_context_text(retrieved_docs)
         context_text = user_input + context_text
         
+        print(f"Context Text: {context_text}")
+        print(f"Citation Map: {citation_map}")
         # Generate response
         result = llm_processing_Jamie(query, context_text)
         if not result:
@@ -159,7 +161,7 @@ async def CHAT_WITH_JAMIE(userId,user_input: str, use_web: bool = False, use_gra
         
         # Extract citations
         used_citations = extract_used_citations(result, citation_map, retrieved_docs)
-        
+        print(f"Used Citations in talk to jamie: {used_citations}")
         # Generate graph if enabled
         graph_img = graph_vis(query, retrieved_docs, result) if use_graph else None
         
