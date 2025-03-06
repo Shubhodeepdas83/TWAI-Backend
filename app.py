@@ -17,7 +17,7 @@ class AIHelpRequest(BaseModel):
     raw_conversation: list
     use_web: bool
     userId : str
-    useHighlightedText : Optional[bool] = False
+    useHighlightedText : Optional[bool] = False  #ADDED THESE 2 PARAMS YOU CAN TEST AND USE THEM
     highlightedText : Optional[str] = ""
 
 # Pydantic model for AI Summary request data
@@ -30,7 +30,6 @@ class AISummaryRequest(BaseModel):
 async def process_ai_help_endpoint(request: AIHelpRequest):
     """Handles the AI help processing via POST API."""
     try:
-        print(request.highlightedText)
         return HELP_WITH_AI(request.raw_conversation, request.use_web,request.userId)
     except Exception as e:
         print(e)
