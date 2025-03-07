@@ -59,7 +59,7 @@ def handle_help_from_ai_text(custom_instructions, temperature, top_p, token_limi
         chat_completion = client.chat.completions.create(
             messages=[
                 {"role": "system", "content": f"You are an AI assistant... {custom_instructions}"},
-        {"role": "user", "content": f"Based on the conversation provided, generate a query for RAG. Here's the main Important conversation snippet:\n\n{highlightedText}\n\nHere's the overall conversation :\n\n{sumaredText}\n\n. WHILE GENERATING THE QUERY, ENSURE THAT THE QUERY IS MAJORLY BASED ON THE HIGHLIGHTED TEXT WITH THE USE OF THE OVERALL CONVERSATION TO PROVIDE CONTEXT."}
+                {"role": "user", "content": f"Based on the conversation provided, generate a query for RAG. Here's the main Important conversation snippet:\n\n{highlightedText}\n\nHere's the overall conversation :\n\n{summarized_text}\n\n. WHILE GENERATING THE QUERY, ENSURE THAT THE QUERY IS MAJORLY BASED ON THE HIGHLIGHTED TEXT WITH THE USE OF THE OVERALL CONVERSATION TO PROVIDE CONTEXT."}
             ],
             model="gpt-4o-mini", 
             temperature=temperature, 
@@ -69,7 +69,7 @@ def handle_help_from_ai_text(custom_instructions, temperature, top_p, token_limi
         log_time("Completed Question Extraction")
         return chat_completion.choices[0].message.content
     except Exception as e:
-        log_time("Error in Question Extraction")
+        log_time("Error in Question Extraction text")
         return None
 
 def llm_processing_query(context_text, query, custom_instructions, temperature, top_p, token_limit):
@@ -166,7 +166,7 @@ def HELP_WITH_AI(raw_conversation, use_web, userId):
 
 def HELP_WITH_AI_text(raw_conversation, use_web, userId, highlightedText):
     try :
-        log_time("Starting AI Help Process")
+        log_time("Starting AI Help Process Text")
 
         ai_instructions = get_system_instructions()
         model_params = get_model_parameters()
