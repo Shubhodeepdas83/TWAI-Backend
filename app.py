@@ -1,6 +1,6 @@
 from pydantic import BaseModel
-from CleanedTest.help_with_ai import HELP_WITH_AI
-from CleanedTest.fact_checking import FACT_CHECKING_HELP
+from CleanedTest.help_with_ai import HELP_WITH_AI , HELP_WITH_AI_text
+from CleanedTest.fact_checking import FACT_CHECKING_HELP , FACT_CHECKING_HELP_text
 from CleanedTest.summary_maker import SUMMARY_WITH_AI
 from typing import Optional
 from fastapi import FastAPI, Form, UploadFile, File, HTTPException
@@ -30,7 +30,13 @@ class AISummaryRequest(BaseModel):
 async def process_ai_help_endpoint(request: AIHelpRequest):
     """Handles the AI help processing via POST API."""
     try:
-        return HELP_WITH_AI(request.raw_conversation, request.use_web,request.userId)
+        if request.useHighlightedText:
+            if request.highlightedText == " " :
+                return HELP_WITH_AI(request.raw_conversation, request.use_web,request.userId)
+            else:
+                return HELP_WITH_AI_text(request.raw_conversation, request.use_web,request.userId,request.highlightedText)
+        else:
+            return HELP_WITH_AI(request.raw_conversation, request.use_web,request.userId)
     except Exception as e:
         print(e)
         raise HTTPException(status_code=400, detail=f"An error occurred: {str(e)}")
@@ -39,7 +45,13 @@ async def process_ai_help_endpoint(request: AIHelpRequest):
 async def process_ai_factcheck_endpoint(request: AIHelpRequest):
     """Handles the AI fact-checking processing via POST API."""
     try:
-        return FACT_CHECKING_HELP(request.raw_conversation, request.use_web,request.userId)
+        if request.useHighlightedText:
+            if request.highlightedText == " " :
+                return FACT_CHECKING_HELP(request.raw_conversation, request.use_web,request.userId)
+            else:
+                return FACT_CHECKING_HELP_text(request.raw_conversation, request.use_web,request.userId,request.highlightedText)
+        else:
+            return FACT_CHECKING_HELP(request.raw_conversation, request.use_web,request.userId)
     except Exception as e:
         print(e)
         raise HTTPException(status_code=400, detail=f"An error occurred: {str(e)}")

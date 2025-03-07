@@ -69,6 +69,27 @@ def llm_processing_FindAnswer(Cust_instr, temp, top_p, token_limit, raw_Conversa
         log_time("Error in Answer Extraction")
         return None
 
+def llm_processing_FindAnswer_text(Cust_instr, temp, top_p, token_limit, raw_Conversation, highlightedText):
+    log_time("Starting LLM Processing for Answer Extraction")
+    relevant_conversation = extract_relevant_conversation(raw_Conversation)
+    summarized_text = " ".join(text for _, text in relevant_conversation) if relevant_conversation else "No new conversation available to analyze."
+    try:
+        chat_completion = client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": f"{Cust_instr}"},
+                {"role": "user", "content": f"Use the following snippet as high importance for extraction:\n\n{highlightedText}\n\nHere's the overall conversation :\n\n{summarized_text}\n\n. WHILE EXTRACTING THE FINAL EXCHANGE, ENSURE THAT THE EXTRACTED TEXT IS MAJORLY BASED ON THE HIGHLIGHTED TEXT WITH THE USE OF THE OVERALL CONVERSATION TO PROVIDE CONTEXT."}
+            ],
+            model="gpt-4o-mini", 
+            temperature=temp, 
+            top_p=top_p, 
+            max_tokens=token_limit
+        )
+        log_time("Completed LLM Processing for Answer Extraction")
+        return chat_completion.choices[0].message.content
+    except Exception as e:
+        log_time("Error in Answer Extraction")
+        return None
+
 def FACT_CHECKING_HELP(raw_Conversation, use_web, userId):
     try :
         log_time("Starting Fact Checking Process")
@@ -83,6 +104,75 @@ def FACT_CHECKING_HELP(raw_Conversation, use_web, userId):
         namespace = userId
 
         query = llm_processing_FindAnswer(instruction, temp, top_p, token_limit, raw_Conversation)
+        if not query:
+            log_time("No valid summary generated")
+            return {"error": "No valid summary generated"}
+        
+        log_time("Starting RAG Query")
+        chunk_limit = get_model_parameters()["chunk_limit"]
+        task = [query_ragR(query, chunk_limit, namespace)]
+        log_time("Completed RAG Query")
+        
+        if use_web:
+            log_time("Starting Web Search")
+            task.append(useWeb(query))
+            log_time("Completed Web Search") 
+        
+        results = task
+        retrieved_docs = results[0]
+        if use_web:
+            retrieved_docs.extend(results[1])
+
+        context_text, citation_map, result = "", {}, "No result found."
+        used_citations = {}
+        
+        log_time("Starting Context Processing (Citation) for RAG and Web Search")
+        context_text, citation_map = citation_context_text(retrieved_docs)
+        log_time("Completed Context Processing (Citation) for RAG and Web Search")
+        print(f"Context Text: {context_text}")
+        print(f"Citation Map: {citation_map}")
+        
+        log_time("Starting LLM Response Generation")
+        
+        result = llm_processing_evaluation(
+                    context_text, 
+                    query, 
+                    instruction, 
+                    temp, 
+                    top_p, 
+                    token_limit
+                )
+        log_time("Completed LLM Response Generation")
+        
+        log_time("Extracting Citations")
+        used_citations = extract_used_citations(result, citation_map, retrieved_docs)
+        log_time("Completed Citation Extraction")
+        
+        log_time("Completed Fact Checking Process")
+        return {
+            "query": "FACT CHECK:",
+            "used_citations": used_citations,
+            "result": result
+        }
+    except Exception as e:
+        log_time("Error in Fact Checking Process")
+        print(f"Error in Fact Checking Process: {e}")
+        return {"error": "An error occurred during AI help processing."}
+
+def FACT_CHECKING_HELP_text(raw_Conversation, use_web, userId, highlightedText):
+    try :
+        log_time("Starting Fact Checking Process")
+
+        instructions = get_system_instructions()
+        model_params = get_model_parameters()
+
+        instruction =  instructions["fact_checking"]
+        temp = model_params["temperature"]
+        top_p = model_params["top_p"]
+        token_limit = model_params["token_limit"]
+        namespace = userId
+
+        query = llm_processing_FindAnswer_text(instruction, temp, top_p, token_limit, raw_Conversation, highlightedText)
         if not query:
             log_time("No valid summary generated")
             return {"error": "No valid summary generated"}
