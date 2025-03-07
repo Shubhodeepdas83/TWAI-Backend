@@ -69,69 +69,71 @@ def llm_processing_FindAnswer(Cust_instr, temp, top_p, token_limit, raw_Conversa
         log_time("Error in Answer Extraction")
         return None
 
-def process_fact_checking(instruction, temp, top_p, token_limit, raw_Conversation, use_web, namespace):
-    log_time("Starting Fact Checking Process")
-    query = llm_processing_FindAnswer(instruction, temp, top_p, token_limit, raw_Conversation)
-    if not query:
-        log_time("No valid summary generated")
-        return {"error": "No valid summary generated"}
-    
-    log_time("Starting RAG Query")
-    chunk_limit = get_model_parameters()["chunk_limit"]
-    query_results = query_ragR(query, chunk_limit, namespace)
-    log_time("Completed RAG Query")
-    
-    all_retrieved_documents = query_results
-    if use_web:
-        log_time("Starting Web Search")
-        web_results = useWeb(query)
-        log_time("Completed Web Search")
-        all_retrieved_documents += web_results  
-    
-    context_text, citation_map = "", {}
-    result = "No result found."
-    used_citations = {}
-    
-    if all_retrieved_documents:
-        log_time("Starting Context Text Generation")
-        context_text, citation_map = citation_context_text(all_retrieved_documents)
-        log_time("Completed Context Text Generation")
-        
-        if context_text:
-            result = llm_processing_evaluation(
-                context_text, 
-                query, 
-                instruction, 
-                temp, 
-                top_p, 
-                token_limit
-            )
-            log_time("Extracting Citations")
-            used_citations = extract_used_citations(result, citation_map, all_retrieved_documents)
-            log_time("Completed Citation Extraction")
-        else:
-            log_time("No context found")
-            return {"error": "No context found from the retrieved documents"}
-    
-    log_time("Completed Fact Checking Process")
-    return {
-        "query": "FACT CHECK:",
-        "used_citations": used_citations,
-        "result": result
-    }
-
 def FACT_CHECKING_HELP(raw_Conversation, use_web, userId):
-    log_time("Starting FACT_CHECKING_HELP")
-    instructions = get_system_instructions()
-    model_params = get_model_parameters()
-    response = process_fact_checking(
-        instructions["fact_checking"],
-        model_params["temperature"],
-        model_params["top_p"],
-        model_params["token_limit"],
-        raw_Conversation,
-        use_web,
-        namespace=userId
-    )
-    log_time("Completed FACT_CHECKING_HELP")
-    return response
+    try :
+        log_time("Starting Fact Checking Process")
+
+        instructions = get_system_instructions()
+        model_params = get_model_parameters()
+
+        instruction =  instructions["fact_checking"]
+        temp = model_params["temperature"]
+        top_p = model_params["top_p"]
+        token_limit = model_params["token_limit"]
+        namespace = userId
+
+        query = llm_processing_FindAnswer(instruction, temp, top_p, token_limit, raw_Conversation)
+        if not query:
+            log_time("No valid summary generated")
+            return {"error": "No valid summary generated"}
+        
+        log_time("Starting RAG Query")
+        chunk_limit = get_model_parameters()["chunk_limit"]
+        task = [query_ragR(query, chunk_limit, namespace)]
+        log_time("Completed RAG Query")
+        
+        if use_web:
+            log_time("Starting Web Search")
+            task.append(useWeb(query))
+            log_time("Completed Web Search") 
+        
+        results = task
+        retrieved_docs = results[0]
+        if use_web:
+            retrieved_docs.extend(results[1])
+
+        context_text, citation_map, result = "", {}, "No result found."
+        used_citations = {}
+        
+        log_time("Starting Context Processing (Citation) for RAG and Web Search")
+        context_text, citation_map = citation_context_text(retrieved_docs)
+        log_time("Completed Context Processing (Citation) for RAG and Web Search")
+        print(f"Context Text: {context_text}")
+        print(f"Citation Map: {citation_map}")
+        
+        log_time("Starting LLM Response Generation")
+        
+        result = llm_processing_evaluation(
+                    context_text, 
+                    query, 
+                    instruction, 
+                    temp, 
+                    top_p, 
+                    token_limit
+                )
+        log_time("Completed LLM Response Generation")
+        
+        log_time("Extracting Citations")
+        used_citations = extract_used_citations(result, citation_map, retrieved_docs)
+        log_time("Completed Citation Extraction")
+        
+        log_time("Completed Fact Checking Process")
+        return {
+            "query": "FACT CHECK:",
+            "used_citations": used_citations,
+            "result": result
+        }
+    except Exception as e:
+        log_time("Error in Fact Checking Process")
+        print(f"Error in Fact Checking Process: {e}")
+        return {"error": "An error occurred during AI help processing."}

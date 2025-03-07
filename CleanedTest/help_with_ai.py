@@ -80,65 +80,64 @@ def llm_processing_query(context_text, query, custom_instructions, temperature, 
     return response
 
 
-def process_ai_help(instruction, temperature, top_p, token_limit, raw_conversation, use_web, namespace):
-    log_time("Starting AI Help Process")
-    
-    query = handle_help_from_ai(instruction, temperature, top_p, token_limit, raw_conversation)
-    if not query:
-        return {"error": "No query generated"}
-    
-    log_time("Starting RAG Query")
-    chunk_limit = get_model_parameters()["chunk_limit"]
-    query_results = query_ragR(query, chunk_limit, namespace)
-    log_time("Completed RAG Query")
-
-    all_retrieved_documents = query_results
-    if use_web:
-        log_time("Starting Web Search")
-        web_results = useWeb(query)
-        log_time("Completed Web Search")
-        all_retrieved_documents += web_results  
-
-    context_text, citation_map, result = "", {}, "No result found."
-    used_citations = {}
-
-    if all_retrieved_documents:
-        log_time("Starting Context Text Generation")
-        context_text, citation_map = citation_context_text(all_retrieved_documents)
-        log_time("Completed Context Text Generation")
-
-        if context_text:
-            result = llm_processing_query(context_text, query, instruction, temperature, top_p, token_limit)
-            log_time("Extracting Citations")
-            used_citations = extract_used_citations(result, citation_map, all_retrieved_documents)
-            log_time("Completed Citation Extraction")
-        else:
-            return {"error": "No context found from the retrieved documents"}
-
-    log_time("Completed AI Help Process")
-    
-    return {
-        "query": query,
-        "used_citations": used_citations,
-        "result": result
-    }
-
-
 def HELP_WITH_AI(raw_conversation, use_web, userId):
-    log_time("Starting HELP_WITH_AI")
-    
-    ai_instructions = get_system_instructions()
-    model_params = get_model_parameters()
+    try :
+        log_time("Starting AI Help Process")
 
-    response = process_ai_help(
-        ai_instructions["query_extraction"],
-        model_params["temperature"],
-        model_params["top_p"],
-        model_params["token_limit"],
-        raw_conversation,
-        use_web,
-        namespace=userId
-    )
+        ai_instructions = get_system_instructions()
+        model_params = get_model_parameters()
 
-    log_time("Completed HELP_WITH_AI")
-    return response
+        instruction = ai_instructions["query_extraction"]
+        temperature = model_params["temperature"]
+        top_p = model_params["top_p"]
+        token_limit = model_params["token_limit"]
+        namespace = userId
+        
+        query = handle_help_from_ai(instruction, temperature, top_p, token_limit, raw_conversation)
+        if not query:
+            return {"error": "No query generated"}
+        
+        log_time("Starting RAG Query")
+        chunk_limit = get_model_parameters()["chunk_limit"]
+        task = [query_ragR(query, chunk_limit, namespace)]
+        log_time("Completed RAG Query")
+
+        # all_retrieved_documents = query_results
+        if use_web:
+            log_time("Starting Web Search")
+            task.append(useWeb(query))
+            log_time("Completed Web Search")
+            # all_retrieved_documents += web_results  
+        results = task
+        retrieved_docs = results[0]
+        if use_web:
+            retrieved_docs.extend(results[1])
+
+        context_text, citation_map, result = "", {}, "No result found."
+        used_citations = {}
+
+        log_time("Starting Context Processing (Citation) for RAG and Web Search")
+        context_text, citation_map = citation_context_text(retrieved_docs)
+        log_time("Completed Context Processing (Citation) for RAG and Web Search")
+        print(f"Context Text: {context_text}")
+        print(f"Citation Map: {citation_map}")
+        
+        log_time("Starting LLM Response Generation")
+        
+        result = llm_processing_query(context_text, query, instruction, temperature, top_p, token_limit)
+        log_time("Completed LLM Response Generation")
+        
+        log_time("Extracting Citations")
+        used_citations = extract_used_citations(result, citation_map, retrieved_docs)
+        log_time("Completed Citation Extraction")
+        log_time("Completed AI Help Process")
+        return {
+            "query": query,
+            "used_citations": used_citations,
+            "result": result
+        }
+    except Exception as e:
+        log_time("Error in AI Help Process")
+        print(f"Error in HELP_WITH_AI: {e}")
+        return {"error": "An error occurred during AI help processing."}
+        

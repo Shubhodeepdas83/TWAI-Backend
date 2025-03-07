@@ -1,6 +1,7 @@
 import os
 import base64
 import time
+import asyncio
 import matplotlib.pyplot as plt
 from io import BytesIO
 from datetime import datetime
@@ -18,6 +19,14 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 def log_time(stage):
     """Logs the timestamp for a given stage."""
     print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {stage}")
+
+async def async_query_ragR(query, chunk_limit, namespace):
+    print("----------------Using RAG-----------------------")
+    return await asyncio.to_thread(query_ragR, query, chunk_limit, namespace=namespace)
+
+async def async_useWeb(query):
+    print("----------------Using Web-----------------------")
+    return await asyncio.to_thread(useWeb, query)
 
 # Function to encode an image to base64
 def encode_image(image_path):
@@ -124,16 +133,23 @@ async def CHAT_WITH_JAMIE(userId, user_input: str, use_web: bool = False, use_gr
         if not query:
             return {"query": "Talk to Jamie", "result": "No query generated"}
         
-        log_time("Starting RAG Query")
-        retrieved_docs = query_ragR(query, get_model_parameters()["chunk_limit"], namespace=userId)
+        log_time("Starting Parallel Execution for RAG and Web Search")
+        tasks = [async_query_ragR(query, get_model_parameters()["chunk_limit"], namespace=userId)]
         if use_web:
-            retrieved_docs.extend(useWeb(query))
-        log_time("Completed RAG Query")
+            tasks.append(async_useWeb(query))
         
-        log_time("Starting Context Processing")
+        results = await asyncio.gather(*tasks)
+        
+        retrieved_docs = results[0]
+        if use_web:
+            retrieved_docs.extend(results[1])
+        
+        log_time("Completed Parallel Execution for RAG and Web Search")
+        
+        log_time("Starting Context Processing (Citation) for RAG and Web Search")
         context_text, citation_map = citation_context_text(retrieved_docs)
         context_text = user_input + context_text
-        log_time("Completed Context Processing")
+        log_time("Completed Context Processing (Citation) for RAG and Web Search")
 
         print(f"Context Text: {context_text}")
         print(f"Citation Map: {citation_map}")
