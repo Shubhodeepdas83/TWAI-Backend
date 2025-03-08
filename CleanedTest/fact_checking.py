@@ -4,13 +4,13 @@ from datetime import datetime
 from openai import OpenAI
 from dotenv import load_dotenv
 from CleanedTest.citations import extract_used_citations
+from .prompts import get_system_instructions
 from .commonFunctions import (
     extract_relevant_conversation,
     query_ragR,
     useWeb,
     citation_context_text,
     llm_processing,
-    get_system_instructions,
     get_model_parameters
 )
 
@@ -48,14 +48,14 @@ def llm_processing_evaluation(context_text, query, Cust_instr, temp, top_p, toke
     log_time("Completed LLM Processing for Evaluation")
     return result
 
-def llm_processing_FindAnswer(Cust_instr, temp, top_p, token_limit, raw_Conversation):
+def llm_processing_FindAnswer(instruction, temp, top_p, token_limit, raw_Conversation):
     log_time("Starting LLM Processing for Answer Extraction")
     relevant_conversation = extract_relevant_conversation(raw_Conversation)
     summarized_text = " ".join(text for _, text in relevant_conversation) if relevant_conversation else "No new conversation available to analyze."
     try:
         chat_completion = client.chat.completions.create(
             messages=[
-                {"role": "system", "content": f"{Cust_instr}"},
+                {"role": "system", "content": f"{instruction}"},
                 {"role": "user", "content": f"Extract the final exchange:\n\n{summarized_text}"}
             ],
             model="gpt-4o-mini", 
@@ -69,14 +69,14 @@ def llm_processing_FindAnswer(Cust_instr, temp, top_p, token_limit, raw_Conversa
         log_time("Error in Answer Extraction")
         return None
 
-def llm_processing_FindAnswer_text(Cust_instr, temp, top_p, token_limit, raw_Conversation, highlightedText):
+def llm_processing_FindAnswer_text(instruction, temp, top_p, token_limit, raw_Conversation, highlightedText):
     log_time("Starting LLM Processing for Answer Extraction")
     relevant_conversation = extract_relevant_conversation(raw_Conversation)
     summarized_text = " ".join(text for _, text in relevant_conversation) if relevant_conversation else "No new conversation available to analyze."
     try:
         chat_completion = client.chat.completions.create(
             messages=[
-                {"role": "system", "content": f"{Cust_instr}"},
+                {"role": "system", "content": f"{instruction}"},
                 {"role": "user", "content": f"Use the following snippet as high importance for extraction:\n\n{highlightedText}\n\nHere's the overall conversation :\n\n{summarized_text}\n\n. WHILE EXTRACTING THE FINAL EXCHANGE, ENSURE THAT THE EXTRACTED TEXT IS MAJORLY BASED ON THE HIGHLIGHTED TEXT WITH THE USE OF THE OVERALL CONVERSATION TO PROVIDE CONTEXT."}
             ],
             model="gpt-4o-mini", 
@@ -98,12 +98,13 @@ def FACT_CHECKING_HELP(raw_Conversation, use_web, userId):
         model_params = get_model_parameters()
 
         instruction =  instructions["fact_checking"]
+        instruction2 = instructions["exchange_extraction"]
         temp = model_params["temperature"]
         top_p = model_params["top_p"]
         token_limit = model_params["token_limit"]
         namespace = userId
 
-        query = llm_processing_FindAnswer(instruction, temp, top_p, token_limit, raw_Conversation)
+        query = llm_processing_FindAnswer(instruction2, temp, top_p, token_limit, raw_Conversation)
         if not query:
             log_time("No valid summary generated")
             return {"error": "No valid summary generated"}
@@ -167,12 +168,13 @@ def FACT_CHECKING_HELP_text(raw_Conversation, use_web, userId, highlightedText):
         model_params = get_model_parameters()
 
         instruction =  instructions["fact_checking"]
+        instruction2 = instructions["exchange_extraction"]
         temp = model_params["temperature"]
         top_p = model_params["top_p"]
         token_limit = model_params["token_limit"]
         namespace = userId
 
-        query = llm_processing_FindAnswer_text(instruction, temp, top_p, token_limit, raw_Conversation, highlightedText)
+        query = llm_processing_FindAnswer_text(instruction2, temp, top_p, token_limit, raw_Conversation, highlightedText)
         if not query:
             log_time("No valid summary generated")
             return {"error": "No valid summary generated"}

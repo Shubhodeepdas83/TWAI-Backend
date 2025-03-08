@@ -4,14 +4,14 @@ from datetime import datetime  # Import datetime for readable timestamps
 from openai import OpenAI
 from dotenv import load_dotenv
 from .citations import extract_used_citations
+from .prompts import get_system_instructions
 from .commonFunctions import (
     extract_relevant_conversation,
     query_ragR,
     useWeb,
     citation_context_text,
     llm_processing,
-    get_model_parameters,
-    get_system_instructions
+    get_model_parameters
 )
 
 # Load environment variables
@@ -110,6 +110,7 @@ def HELP_WITH_AI(raw_conversation, use_web, userId):
         model_params = get_model_parameters()
 
         instruction = ai_instructions["query_extraction"]
+        instruction2 = ai_instructions["answering_query"]
         temperature = model_params["temperature"]
         top_p = model_params["top_p"]
         token_limit = model_params["token_limit"]
@@ -146,7 +147,7 @@ def HELP_WITH_AI(raw_conversation, use_web, userId):
         
         log_time("Starting LLM Response Generation")
         
-        result = llm_processing_query(context_text, query, instruction, temperature, top_p, token_limit)
+        result = llm_processing_query(context_text, query, instruction2, temperature, top_p, token_limit)
         log_time("Completed LLM Response Generation")
         
         log_time("Extracting Citations")
@@ -172,6 +173,7 @@ def HELP_WITH_AI_text(raw_conversation, use_web, userId, highlightedText):
         model_params = get_model_parameters()
 
         instruction = ai_instructions["query_extraction"]
+        instruction2 = ai_instructions["answering_query"]
         temperature = model_params["temperature"]
         top_p = model_params["top_p"]
         token_limit = model_params["token_limit"]
@@ -208,9 +210,8 @@ def HELP_WITH_AI_text(raw_conversation, use_web, userId, highlightedText):
         
         log_time("Starting LLM Response Generation")
         
-        result = llm_processing_query(context_text, query, instruction, temperature, top_p, token_limit)
+        result = llm_processing_query(context_text, query, instruction2, temperature, top_p, token_limit)
         log_time("Completed LLM Response Generation")
-        
         log_time("Extracting Citations")
         used_citations = extract_used_citations(result, citation_map, retrieved_docs)
         log_time("Completed Citation Extraction")

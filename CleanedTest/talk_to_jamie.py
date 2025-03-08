@@ -8,6 +8,7 @@ from datetime import datetime
 from openai import OpenAI
 from dotenv import load_dotenv
 from CleanedTest.citations import extract_used_citations
+from .prompts import get_system_instructions
 from CleanedTest.commonFunctions import (
     citation_context_text, extract_relevant_conversation, llm_processing, query_ragR, useWeb, get_model_parameters
 )
@@ -15,6 +16,11 @@ from CleanedTest.commonFunctions import (
 # Load environment variables
 load_dotenv()
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+instructions = get_system_instructions()
+
+instr1 = instructions["query_extraction_jamie"]
+instr2 = instructions["answer_jamie"]
 
 def log_time(stage):
     """Logs the timestamp for a given stage."""
@@ -70,7 +76,7 @@ def llm_processing_query_Jamie(query, raw_Conversation):
         chat_completion = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "Refine the question to be self-contained and meaningful."},
+                {"role": "system", "content": f"{instr1}"},
                 {"role": "user", "content": f"Conversation: {summarized_text}\n\nQuestion: {query}"}
             ],
             temperature=0.7, top_p=0.9, max_tokens=600
@@ -85,7 +91,7 @@ def llm_processing_query_Jamie(query, raw_Conversation):
 # Function to process user queries and generate structured responses
 def llm_processing_Jamie(query: str, context_text: str):
     messages = [
-        {"role": "system", "content": "Provide concise, structured responses with bullet points and citations.Cite the source number at the end of each sentence or phrase that comes from that source using square brackets like [Number]. If the information comes from multiple sources, cite all relevant source numbers. If the answer is not found in the sources, say 'i am sorry, but I cannot answer this question based on the provided information.'"},
+        {"role": "system", "content": f"{instr2}"},
         {"role": "user", "content": f"Sources:\n{context_text}\n\nQuestion: {query}\nAnswer:"}
     ]
     return llm_processing(messages, "gpt-4o-mini", 0.7, 0.9, 700)

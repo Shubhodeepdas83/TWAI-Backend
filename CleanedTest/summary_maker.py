@@ -2,6 +2,10 @@ import os
 from openai import OpenAI
 from dotenv import load_dotenv
 from .commonFunctions import extract_relevant_conversation
+from .prompts import get_system_instructions
+
+instruction = get_system_instructions()
+instr = instruction["summary"]
 
 # Load environment variables
 load_dotenv()
@@ -23,8 +27,8 @@ def Summary_llm(combined_text):
     try:
         chat_completion = client.chat.completions.create(
             messages=[
-                {"role": "system", "content": "Summarize the given conversation of the meet."},
-                {"role": "user", "content": f"Conversation: {combined_text}\n\nSummarize the conversation keeping all the important points. Try to focus only on the most important and relevant points. Dont need to mention every small detail. Answer in specific bullet points with each bullet point not exceeding 15 words, at maximum"}
+                {"role": "system", "content": f"{instr}"},
+                {"role": "user", "content": f'''Conversation: {combined_text}\n\nSummarize the given conversation of the meet.'''}
             ],
             model="gpt-4o-mini", 
             temperature=0.7, 
