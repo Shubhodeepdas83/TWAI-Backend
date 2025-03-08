@@ -237,7 +237,7 @@ def extract_used_citations(response, citation_map, all_retrieved_documents):
         
         
         # Handle PDF citations
-        if (".pdf" in source_desc.lower() and "http" not in source_desc.lower()):
+        if (".pdf" in source_desc.lower() and "amazonaws" in source_desc.lower()):
             text_chunk = None
             pdf_found = False
             
