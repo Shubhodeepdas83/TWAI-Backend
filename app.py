@@ -19,18 +19,20 @@ class AIHelpRequest(BaseModel):
     userId : str
     useHighlightedText : Optional[bool] = False  #ADDED THESE 2 PARAMS YOU CAN TEST AND USE THEM
     highlightedText : Optional[str] = ""
+    meetingTemplate : Optional[str] = "{}" #THIS COMES IN STRING JSON FORMAT DONT FORGET TO CONVERT IT TO JSON
 
 # Pydantic model for AI Summary request data
 class AISummaryRequest(BaseModel):
     raw_conversation: list
     useHighlightedText : Optional[bool] = False
     highlightedText : Optional[str] = ""
+    meetingTemplate : Optional[str] = "{}"  #THIS COMES IN STRING JSON FORMAT DONT FORGET TO CONVERT IT TO JSON
 
 @app.post("/process-ai-help")
 async def process_ai_help_endpoint(request: AIHelpRequest):
     """Handles the AI help processing via POST API."""
     try:
-        print(request)
+        print(request.meetingTemplate)
         if request.useHighlightedText:
             if request.highlightedText == " " :
                 return HELP_WITH_AI(request.raw_conversation, request.use_web,request.userId)
@@ -82,11 +84,12 @@ async def chat_with_jamie(
     uploaded_file: Optional[UploadFile] = File(None),  
     raw_Conversation: Optional[str] = Form(''),
     userId : str = Form(...),
-    meetingTemplate : Optional[str] = Form(...)  
+    meetingTemplate : Optional[str] = Form('{}')  #THIS COMES IN STRING JSON FORMAT DONT FORGET TO CONVERT IT TO JSON
 ):
     """Handles chat processing with Jamie via POST API."""
     try:
-        print(meetingTemplate)
+        
+    
         # Parse raw conversation if provided
         conversation = json.loads(raw_Conversation) if raw_Conversation else []
 
@@ -99,6 +102,7 @@ async def chat_with_jamie(
             raw_Conversation=conversation,
             userId=userId
         )
+        print(response)
         return response
     except Exception as e:
         print(e)
