@@ -25,7 +25,7 @@ def get_system_instructions():
             "Additionally, ensure that the response is accurate, informative, and relevant to the user's query."
             "IMPORTANT NOTE: STRICTLY ALWAYS GIVE SUMMARIZED ANSWERS IN LESS THAN 6 LINES SO THAT THE USER READABILITY IS EASY. "
         ),
-        # FACT CHECKING EVALUATION - SYSTEM PROMT --> FACT CHECKING - LLM CALL 1
+        # FACT CHECKING Relevant Conv. Exchange Extraction - SYSTEM PROMT --> FACT CHECKING - LLM CALL 1
         "exchange_extraction": (
             "Extract the relevant exchange of the conversation provided."
         ),
@@ -58,7 +58,7 @@ def get_system_instructions():
               cite all relevant source numbers. If the answer is not found in the sources, say 'i am sorry, but I cannot answer this 
               question based on the provided information.'"""
         ),
-        # SUMMARY LLM - SYSTEM PROMT
+        # SUMMARY LLM - SYSTEM PROMT --> Summary till now sys prompt
         "summary": (
             '''Summarize the provided conversation keeping all the important points. Try to focus only on the most 
                 important and relevant points. Dont need to mention every small detail. Answer in specific bullet points 
