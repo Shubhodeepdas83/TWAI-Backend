@@ -210,7 +210,6 @@ def HELP_WITH_AI_text(raw_conversation, use_web, userId, highlightedText):
         
         result = llm_processing_query(context_text, query, instruction, temperature, top_p, token_limit)
         log_time("Completed LLM Response Generation")
-        
         log_time("Extracting Citations")
         used_citations = extract_used_citations(result, citation_map, retrieved_docs)
         log_time("Completed Citation Extraction")

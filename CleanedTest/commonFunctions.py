@@ -5,18 +5,20 @@ from langchain_community.utilities import GoogleSerperAPIWrapper
 from openai import OpenAI
 from dotenv import load_dotenv
 from pinecone.grpc import PineconeGRPC
-
+import cohere
 
 # Load environment variables
 load_dotenv()
 INDEX_NAME = os.getenv("PINECONE_INDEX_NAME")
 pc = PineconeGRPC(api_key=os.getenv("PINECONE_API_KEY"))
 
+COHERE_API_KEY = os.getenv("COHERE_API_KEY")
 api_key = os.getenv("OPENAI_API_KEY")
 if not api_key:
     raise ValueError("OPENAI_API_KEY is not set. Please check your .env file.")
 os.environ['OPENAI_API_KEY'] = api_key
 
+cohere_client = cohere.Client(COHERE_API_KEY)  # Replace with your Cohere API key
 
 # Initialize OpenAI client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -33,7 +35,7 @@ def get_model_parameters():
         "temperature": 0.7,
         "top_p": 0.9,
         "token_limit": 700,
-        "chunk_limit": 3
+        "chunk_limit": 5
     }
 
 
@@ -54,7 +56,7 @@ def get_system_instructions():
         ),
         "answering_query": (
             "You are a helpful assistant. Your primary function is to answer queries based on the provided context. "
-            "If the query is unrelated to the context, respond with: 'I don't know.' "
+            "If the query is unrelated to the context, respond with your internal knowledge.' "
             "If the query is related to the context, provide a detailed response by combining the provided context with your internal knowledge. "
             "Ensure that your response is contextually aligned and does not contradict the information provided in the context. "
             "When using internal knowledge, make it complementary to the context to enhance the accuracy and usefulness of your response. "
@@ -69,8 +71,8 @@ def get_system_instructions():
             "points and ignore who spoke what. i just need the context of what is spoken"
         ),
         "fact_checking": (
-            "All your answers should be completely grounded **only** from the retrieved context. "
-            "Under **no circumstances** use your internal knowledge base. "
+            # "All your answers should be completely grounded **only** from the retrieved context. "
+            # "Under **no circumstances** use your internal knowledge base. "
             "Evaluate the sentence provided by comparing it against the retrieved context. "
             "Provide an analysis of its accuracy, completeness, and alignment with the context. "
             "Generate a summarized report that includes: "
@@ -126,6 +128,8 @@ def query_ragR(query_text: str, chunk_size: int, namespace: str):
         results = index.query(vector=query_embedding, top_k=chunk_size, include_metadata=True, namespace=namespace)
 
         retrieved_documents = []
+        relevant_texts = []
+
         for match in results.matches:
             page_content = match.metadata.get("text", "").strip()
 
@@ -140,9 +144,29 @@ def query_ragR(query_text: str, chunk_size: int, namespace: str):
                     "Relevance Score": match.score
                 }
             })
+            relevant_texts.append(page_content)
 
+        print("Found documents: ", len(retrieved_documents))
 
-        return retrieved_documents
+        # Step 2: Rerank using Cohere
+        try:
+            documents = [{"text": text} for text in relevant_texts]
+            response = cohere_client.rerank(
+                query=query_text,
+                documents=documents,
+                model="rerank-english-v3.0",
+                top_n=min(3, len(retrieved_documents))  # Ensure we don't exceed available docs
+            )
+            
+            # Get indices of reranked results
+            reranked_indices = [result.index for result in response.results]
+            reranked_docs = [retrieved_documents[i] for i in reranked_indices]
+
+        except Exception as e:
+            print(f"Cohere Rerank API error: {str(e)}")
+            reranked_docs = retrieved_documents[:3]  # Fallback to top Pinecone results
+        print("After Reranking Found documents: ", len(reranked_docs))
+        return reranked_docs
     except Exception as e:
         print(f"Error querying RAG: {e}")
         return []
