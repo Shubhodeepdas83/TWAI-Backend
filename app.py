@@ -30,6 +30,7 @@ class AISummaryRequest(BaseModel):
 async def process_ai_help_endpoint(request: AIHelpRequest):
     """Handles the AI help processing via POST API."""
     try:
+        print(request)
         if request.useHighlightedText:
             if request.highlightedText == " " :
                 return HELP_WITH_AI(request.raw_conversation, request.use_web,request.userId)
@@ -80,10 +81,12 @@ async def chat_with_jamie(
     use_graph: Optional[bool] = Form(...),  
     uploaded_file: Optional[UploadFile] = File(None),  
     raw_Conversation: Optional[str] = Form(''),
-    userId : str = Form(...)  
+    userId : str = Form(...),
+    meetingTemplate : Optional[str] = Form(...)  
 ):
     """Handles chat processing with Jamie via POST API."""
     try:
+        print(meetingTemplate)
         # Parse raw conversation if provided
         conversation = json.loads(raw_Conversation) if raw_Conversation else []
 
