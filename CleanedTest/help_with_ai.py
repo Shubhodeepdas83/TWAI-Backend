@@ -1,6 +1,7 @@
 import os
 import time  # Import time for timestamps
 from datetime import datetime  # Import datetime for readable timestamps
+import concurrent.futures 
 from openai import OpenAI
 from dotenv import load_dotenv
 from .citations import extract_used_citations
@@ -20,6 +21,11 @@ load_dotenv()
 # Initialize OpenAI client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
+def run_tasks_concurrently(task_functions):
+    """Run RAG and Web Search tasks concurrently using ThreadPoolExecutor."""
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        results = list(executor.map(lambda func: func(), task_functions))
+    return results
 
 def log_time(stage):
     """Logs the timestamp for a given stage."""
@@ -103,7 +109,7 @@ def llm_processing_query(context_text, query, custom_instructions, temperature, 
 
 
 def HELP_WITH_AI(raw_conversation, use_web, userId):
-    try :
+    try:
         log_time("Starting AI Help Process")
 
         ai_instructions = get_system_instructions()
@@ -120,50 +126,46 @@ def HELP_WITH_AI(raw_conversation, use_web, userId):
         if not query:
             return {"error": "No query generated"}
         
-        log_time("Starting RAG Query")
+        log_time("Starting RAG & Web Search")
         chunk_limit = get_model_parameters()["chunk_limit"]
-        task = [query_ragR(query, chunk_limit, namespace)]
-        log_time("Completed RAG Query")
 
-        # all_retrieved_documents = query_results
+        # Prepare tasks
+        task_functions = [
+            lambda: query_ragR(query, chunk_limit, namespace)
+        ]
         if use_web:
-            log_time("Starting Web Search")
-            task.append(useWeb(query))
-            log_time("Completed Web Search")
-            # all_retrieved_documents += web_results  
-        results = task
+            task_functions.append(lambda: useWeb(query))
+
+        # Execute tasks in parallel
+        results = run_tasks_concurrently(task_functions)
+        log_time("Completed RAG & Web Search")
+
         retrieved_docs = results[0]
         if use_web:
             retrieved_docs.extend(results[1])
 
-        context_text, citation_map, result = "", {}, "No result found."
-        used_citations = {}
-
-        log_time("Starting Context Processing (Citation) for RAG and Web Search")
         context_text, citation_map = citation_context_text(retrieved_docs)
-        log_time("Completed Context Processing (Citation) for RAG and Web Search")
-        print(f"Context Text: {context_text}")
-        print(f"Citation Map: {citation_map}")
-        
+        log_time("Completed Context Processing (Citation)")
+
         log_time("Starting LLM Response Generation")
-        
         result = llm_processing_query(context_text, query, instruction2, temperature, top_p, token_limit)
         log_time("Completed LLM Response Generation")
-        
+
         log_time("Extracting Citations")
         used_citations = extract_used_citations(result, citation_map, retrieved_docs)
         log_time("Completed Citation Extraction")
+
         log_time("Completed AI Help Process")
         return {
             "query": query,
             "used_citations": used_citations,
             "result": result
         }
+
     except Exception as e:
         log_time("Error in AI Help Process")
         print(f"Error in HELP_WITH_AI: {e}")
         return {"error": "An error occurred during AI help processing."}
-        
 
 def HELP_WITH_AI_text(raw_conversation, use_web, userId, highlightedText):
     try :
@@ -183,18 +185,20 @@ def HELP_WITH_AI_text(raw_conversation, use_web, userId, highlightedText):
         if not query:
             return {"error": "No query generated"}
         
-        log_time("Starting RAG Query")
+        log_time("Starting RAG & Web Search")
         chunk_limit = get_model_parameters()["chunk_limit"]
-        task = [query_ragR(query, chunk_limit, namespace)]
-        log_time("Completed RAG Query")
 
-        # all_retrieved_documents = query_results
+        # Prepare tasks
+        task_functions = [
+            lambda: query_ragR(query, chunk_limit, namespace)
+        ]
         if use_web:
-            log_time("Starting Web Search")
-            task.append(useWeb(query))
-            log_time("Completed Web Search")
-            # all_retrieved_documents += web_results  
-        results = task
+            task_functions.append(lambda: useWeb(query))
+
+        # Execute tasks in parallel
+        results = run_tasks_concurrently(task_functions)
+        log_time("Completed RAG & Web Search")
+        
         retrieved_docs = results[0]
         if use_web:
             retrieved_docs.extend(results[1])
