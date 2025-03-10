@@ -103,12 +103,27 @@ def graph_vis(user_query, user_context, user_response):
         log_time("Starting Graph Generation")
         response = client.chat.completions.create(
             model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": f"Provide Python code to visualize the query: {user_query}, Context: {user_context}, Response: {user_response}"}
+            messages = [
+                {
+                    "role": "system",
+                    "content": (
+                        "I am providing you with the context related to the query, answer to the query and the query itself. \n" 
+                        f"Query : {user_query} , Context : {user_context}, Response:{user_response} \n"
+                        "If the query requires any graph or chart for a better understanding or presentation of answer, \n" 
+                        "please provide only the corresponding matplotlib Python code to generate the graph or chart. \n" 
+                        "Respond with just the code, and nothing else. \n" 
+                    )
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"Provide only the python code to support the answer with a graph or chart. \n"
+                    )
+                }
             ]
         )
         input_plot = response.choices[0].message.content.replace("```python", "").replace("plt.show()", "").replace("```", "")
-        
+        print(f"Input Plot: {input_plot}")
         fig, ax = plt.subplots()
         exec(input_plot, {"plt": plt, "ax": ax})
         buffer = BytesIO()
@@ -143,8 +158,10 @@ async def CHAT_WITH_JAMIE(userId, user_input: str, use_web: bool = False, use_gr
             # return {"query": "Talk to Jamie", "result": "No query generated"}
         yield json.dumps({"query": query}) + "\n"
         
+        chunk_limit = get_model_parameters()["chunk_limit"]
+        
         log_time("Starting Parallel Execution for RAG and Web Search")
-        tasks = [async_query_ragR(query, get_model_parameters()["chunk_limit"], namespace=userId)]
+        tasks = [async_query_ragR(query, chunk_limit, namespace=userId)]
         if use_web:
             tasks.append(async_useWeb(query))
         
@@ -174,6 +191,7 @@ async def CHAT_WITH_JAMIE(userId, user_input: str, use_web: bool = False, use_gr
         used_citations = extract_used_citations(result, citation_map, retrieved_docs)
         yield json.dumps({"used_citations": used_citations}) + "\n"
         log_time("Completed Citation Extraction")
+
         
         graph_img = graph_vis(query, retrieved_docs, result) if use_graph else None
         yield json.dumps({"graph": graph_img}) + "\n"
