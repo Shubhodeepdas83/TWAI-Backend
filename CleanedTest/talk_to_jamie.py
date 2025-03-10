@@ -1,3 +1,4 @@
+import json
 import os
 import base64
 import time
@@ -141,7 +142,8 @@ def graph_vis(user_query, user_context, user_response):
 # Main chatbot function to process user input and generate responses
 async def CHAT_WITH_JAMIE(userId, user_input: str, use_web: bool = False, use_graph: bool = False, uploaded_file=None, raw_Conversation=[]):
     if not user_input:
-        return {"query": "Talk to Jamie", "result": "No user input provided"}
+        pass
+        # return {"query": "Talk to Jamie", "result": "No user input provided"}
     
     try:
         log_time("Starting CHAT_WITH_JAMIE")
@@ -152,7 +154,9 @@ async def CHAT_WITH_JAMIE(userId, user_input: str, use_web: bool = False, use_gr
         
         query = llm_processing_query_Jamie(user_input, raw_Conversation)
         if not query:
-            return {"query": "Talk to Jamie", "result": "No query generated"}
+            pass
+            # return {"query": "Talk to Jamie", "result": "No query generated"}
+        yield json.dumps({"query": query}) + "\n"
         
         chunk_limit = get_model_parameters()["chunk_limit"]
         
@@ -179,19 +183,23 @@ async def CHAT_WITH_JAMIE(userId, user_input: str, use_web: bool = False, use_gr
         
         log_time("Starting LLM Response Generation")
         result = llm_processing_Jamie(query, context_text)
+        yield json.dumps({"result": result}) + "\n"
 
         log_time("Completed LLM Response Generation")
         
         log_time("Extracting Citations")
         used_citations = extract_used_citations(result, citation_map, retrieved_docs)
+        yield json.dumps({"used_citations": used_citations}) + "\n"
         log_time("Completed Citation Extraction")
 
         
         graph_img = graph_vis(query, retrieved_docs, result) if use_graph else None
+        yield json.dumps({"graph": graph_img}) + "\n"
+
         log_time("Completed CHAT_WITH_JAMIE")
         
-        return {"query": query, "result": result, "used_citations": used_citations, "graph": graph_img}
+        # return {"query": query, "result": result, "used_citations": used_citations, "graph": graph_img}
     except Exception as e:
         log_time("Error in CHAT_WITH_JAMIE")
         print(f"Error in CHAT_WITH_JAMIE: {e}")
-        return {"query": "Talk to Jamie", "result": "Error occurred"}
+        # return {"query": "Talk to Jamie", "result": "Error occurred"}

@@ -1,3 +1,4 @@
+import json
 import os
 import time  # Import time for timestamps
 from datetime import datetime  # Import datetime for readable timestamps
@@ -109,7 +110,7 @@ def llm_processing_query(context_text, query, custom_instructions, temperature, 
 
 
 def HELP_WITH_AI(raw_conversation, use_web, userId):
-    try:
+    try :
         log_time("Starting AI Help Process")
 
         ai_instructions = get_system_instructions()
@@ -124,7 +125,10 @@ def HELP_WITH_AI(raw_conversation, use_web, userId):
         
         query = handle_help_from_ai(instruction, temperature, top_p, token_limit, raw_conversation)
         if not query:
-            return {"error": "No query generated"}
+            pass
+            # return {"error": "No query generated"}
+        
+        yield json.dumps({"query": query}) + "\n"
         
         log_time("Starting RAG & Web Search")
         chunk_limit = get_model_parameters()["chunk_limit"]
@@ -149,10 +153,13 @@ def HELP_WITH_AI(raw_conversation, use_web, userId):
 
         log_time("Starting LLM Response Generation")
         result = llm_processing_query(context_text, query, instruction2, temperature, top_p, token_limit)
+        yield json.dumps({"result": result}) + "\n"
         log_time("Completed LLM Response Generation")
 
         log_time("Extracting Citations")
         used_citations = extract_used_citations(result, citation_map, retrieved_docs)
+
+        yield  json.dumps({"used_citations": used_citations}) + "\n"
         log_time("Completed Citation Extraction")
 
         log_time("Completed AI Help Process")
@@ -161,11 +168,11 @@ def HELP_WITH_AI(raw_conversation, use_web, userId):
             "used_citations": used_citations,
             "result": result
         }
-
     except Exception as e:
         log_time("Error in AI Help Process")
         print(f"Error in HELP_WITH_AI: {e}")
         return {"error": "An error occurred during AI help processing."}
+        
 
 def HELP_WITH_AI_text(raw_conversation, use_web, userId, highlightedText):
     try :
