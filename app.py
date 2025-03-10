@@ -9,9 +9,22 @@ from CleanedTest.upload_pdf import ADD_EMBEDDINGS_FROM_S3
 from CleanedTest.delete_embeddings import DELETE_EMBEDDINGS
 import json
 from fastapi.responses import StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
+
+
+
+
 
 # Initialize FastAPI app
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Pydantic model for AI Help request data
 class AIHelpRequest(BaseModel):
@@ -30,7 +43,7 @@ class AISummaryRequest(BaseModel):
     meetingTemplate : Optional[str] = "{}"  #THIS COMES IN STRING JSON FORMAT DONT FORGET TO CONVERT IT TO JSON
 
 @app.post("/process-ai-help")
-async def process_ai_help_endpoint(request: AIHelpRequest):
+def process_ai_help_endpoint(request: AIHelpRequest):
     """Handles the AI help processing via POST API."""
     try:
         if request.useHighlightedText:

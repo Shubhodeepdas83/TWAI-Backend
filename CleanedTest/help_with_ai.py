@@ -103,7 +103,7 @@ def llm_processing_query(context_text, query, custom_instructions, temperature, 
     return response
 
 
-async def HELP_WITH_AI(raw_conversation, use_web, userId):
+def HELP_WITH_AI(raw_conversation, use_web, userId):
     try :
         log_time("Starting AI Help Process")
 
