@@ -8,6 +8,7 @@ from CleanedTest.talk_to_jamie import CHAT_WITH_JAMIE
 from CleanedTest.upload_pdf import ADD_EMBEDDINGS_FROM_S3
 from CleanedTest.delete_embeddings import DELETE_EMBEDDINGS
 import json
+from fastapi.responses import StreamingResponse
 
 # Initialize FastAPI app
 app = FastAPI()
@@ -32,14 +33,14 @@ class AISummaryRequest(BaseModel):
 async def process_ai_help_endpoint(request: AIHelpRequest):
     """Handles the AI help processing via POST API."""
     try:
-        print(request.meetingTemplate)
         if request.useHighlightedText:
             if request.highlightedText == " " :
                 return HELP_WITH_AI(request.raw_conversation, request.use_web,request.userId)
             else:
                 return HELP_WITH_AI_text(request.raw_conversation, request.use_web,request.userId,request.highlightedText)
         else:
-            return HELP_WITH_AI(request.raw_conversation, request.use_web,request.userId)
+
+            return StreamingResponse(HELP_WITH_AI(request.raw_conversation, request.use_web,request.userId), media_type="application/json")
     except Exception as e:
         print(e)
         raise HTTPException(status_code=400, detail=f"An error occurred: {str(e)}")
@@ -94,16 +95,16 @@ async def chat_with_jamie(
         conversation = json.loads(raw_Conversation) if raw_Conversation else []
 
         # Process chat request
-        response = await CHAT_WITH_JAMIE(
+
+        return StreamingResponse(CHAT_WITH_JAMIE(
             user_input=user_input,
             use_web=use_web,
             use_graph=use_graph,
             uploaded_file=uploaded_file,
             raw_Conversation=conversation,
             userId=userId
-        )
-        print(response)
-        return response
+        ), media_type="application/json")
+
     except Exception as e:
         print(e)
         raise HTTPException(status_code=400, detail=f"An error occurred: {str(e)}")
