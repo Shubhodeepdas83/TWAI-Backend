@@ -91,7 +91,7 @@ class ChatRequest(BaseModel):
     uploaded_file: Optional[str] = None
 
 @app.post("/chat_with_jamie")
-async def chat_with_jamie(
+def chat_with_jamie(
     user_input: str = Form(...),  
     use_web: Optional[bool] = Form(...),  
     use_graph: Optional[bool] = Form(...),  
