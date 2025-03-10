@@ -110,7 +110,7 @@ def llm_processing_query(context_text, query, custom_instructions, temperature, 
 
 
 def HELP_WITH_AI(raw_conversation, use_web, userId):
-    try :
+    try:
         log_time("Starting AI Help Process")
 
         ai_instructions = get_system_instructions()
@@ -168,11 +168,11 @@ def HELP_WITH_AI(raw_conversation, use_web, userId):
             "used_citations": used_citations,
             "result": result
         }
+
     except Exception as e:
         log_time("Error in AI Help Process")
         print(f"Error in HELP_WITH_AI: {e}")
         return {"error": "An error occurred during AI help processing."}
-        
 
 def HELP_WITH_AI_text(raw_conversation, use_web, userId, highlightedText):
     try :
